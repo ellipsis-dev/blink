@@ -7,7 +7,30 @@ bun install
 export TYPESAFE_API_KEY="your-key"
 ```
 
+## Using
+
+Pass a natural-language query and a directory to rank where to look; add `-r` to find a file or `-n` to explore multiple paths.
+
+```sh
+./blink "query" "directory" [options]
+```
+
 ## Example
+
+```text
+test/example_codebase/
+├── src/
+│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── login.ts
+│   │   │   └── session.ts
+│   │   └── billing/
+│   │       └── invoices.ts
+│   └── ui/
+│       └── button.ts
+└── docs/
+    └── setup.md
+```
 
 Search the included [example codebase](test/example_codebase) with 100 walkers:
 
@@ -18,12 +41,12 @@ Search the included [example codebase](test/example_codebase) with 100 walkers:
 Example output from the mocked test; live results will vary:
 
 ```text
-      %  Node
- 66.00%  src/services/auth/login.ts
- 13.00%  src/ui/button.ts
- 10.00%  docs/setup.md
-  8.00%  src/services/billing/invoices.ts
-  3.00%  src/services/auth/session.ts
+Node                                   %
+src/services/auth/login.ts         66.0%
+src/ui/button.ts                   13.0%
+docs/setup.md                      10.0%
+src/services/billing/invoices.ts    8.0%
+src/services/auth/session.ts        3.0%
 ```
 
 ## How it works
@@ -33,10 +56,6 @@ Jev ranks each visited directory's immediate children using their names and type
 Run `bun test` to check the example with mocked responses and no API key.
 
 ## Options
-
-```sh
-./blink "query" "directory" [options]
-```
 
 | Short | Long | Behavior |
 | --- | --- | --- |

@@ -8,9 +8,14 @@ export function formatJSON(value: unknown, root: string): string {
 }
 
 export function formatTable(rows: { path: string; posterior: number; unresolved?: boolean }[], root: string): string {
-  return ["      %  Node", ...rows
+  const entries = rows
     .sort((a, b) => b.posterior - a.posterior || a.path.localeCompare(b.path))
-    .map(({ path, posterior, unresolved }) =>
-      `${(posterior * 100).toFixed(2).padStart(6)}%  ${relative(resolve(root), path) || "."}${unresolved ? "/ (unresolved)" : ""}`)]
+    .map(({ path, posterior, unresolved }) => ({
+      node: `${relative(resolve(root), path) || "."}${unresolved ? "/ (unresolved)" : ""}`,
+      percent: `${(posterior * 100).toFixed(1)}%`,
+    }));
+  const width = Math.max(4, ...entries.map(({ node }) => node.length));
+  return [{ node: "Node", percent: "%" }, ...entries]
+    .map(({ node, percent }) => `${node.padEnd(width)}  ${percent.padStart(6)}`)
     .join("\n");
 }

@@ -53,12 +53,12 @@ test.each([
     expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(visited.slice().sort()).toEqual(Object.keys(distributions).sort());
     expect(output.mock.calls.at(-1)![0]).toBe([
-      "      %  Node",
-      " 66.00%  src/services/auth/login.ts",
-      " 13.00%  src/ui/button.ts",
-      " 10.00%  docs/setup.md",
-      "  8.00%  src/services/billing/invoices.ts",
-      "  3.00%  src/services/auth/session.ts",
+      "Node                                   %",
+      "src/services/auth/login.ts         66.0%",
+      "src/ui/button.ts                   13.0%",
+      "docs/setup.md                      10.0%",
+      "src/services/billing/invoices.ts    8.0%",
+      "src/services/auth/session.ts        3.0%",
     ].join("\n"));
     expect(JSON.stringify(output.mock.calls)).not.toContain(directory);
     if (!verbose.length) expect(output).toHaveBeenCalledTimes(1);
@@ -96,7 +96,7 @@ test("reports walkers reaching empty directories without renormalizing the files
     await main(["-r", "-n", "10", "query", directory]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(output.mock.calls.at(-1)![0])
-      .toBe("      %  Node\n 60.00%  found.ts\n 40.00%  empty/ (unresolved)");
+      .toBe("Node                      %\nfound.ts              60.0%\nempty/ (unresolved)   40.0%");
     expect(output).toHaveBeenCalledTimes(1);
   } finally {
     fetchMock.mockRestore();

@@ -53,7 +53,7 @@ test("follows three nested directories, then stops at the most likely file", asy
         { query, directory: "src/services/auth" },
       ]);
     expect(output.mock.calls.at(-1)![0])
-      .toBe("      %  Node\n100.00%  src/services/auth/login.ts");
+      .toBe("Node                             %\nsrc/services/auth/login.ts  100.0%");
     expect(JSON.stringify(output.mock.calls)).not.toContain(directory);
     expect(output.mock.calls.filter(([label]) => label === "Request:")).toHaveLength(4);
     expect(output.mock.calls.filter(([label]) => label === "Response:")).toHaveLength(4);
