@@ -1,17 +1,21 @@
 import { readdir } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { choice, TypeSafeClient, type Usage } from "@typesafe-ai/sdk";
-import settings from "./settings.json";
+import settings from "../settings.json";
+import { OUTPUT_DIRECTORY } from "./traces.ts";
 
 export type State = { query: string; directory: string };
 export type Option = ({ directory: string } | { file: string }) & { probability: number };
 
-export async function step(state: State, includeFiles = false, root = state.directory, verbose = false): Promise<{ options: Option[]; usage?: Usage }> {
+export async function step(state: State, includeFiles = false, root = state.directory, verbose = false): Promise<{
+  options: Option[]; usage?: Usage; evaluation?: { model: string; confidence: number; duration_ms: number };
+}> {
   const directory = resolve(state.directory);
   const entries = await readdir(directory, { withFileTypes: true });
   const candidates = entries
     .filter((entry) =>
       !settings.ignoredNodes.includes(entry.name)
+      && resolve(directory, entry.name) !== OUTPUT_DIRECTORY
       && (entry.isDirectory() || (includeFiles && entry.isFile())))
     .map((entry) => ({ name: entry.name, type: entry.isDirectory() ? "directory" : "file" }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -30,12 +34,17 @@ export async function step(state: State, includeFiles = false, root = state.dire
     },
   };
   if (verbose) console.log("Request:", JSON.stringify(request, null, 2));
+  const started = performance.now();
   const result = await client.systemOne(request);
+  const duration_ms = performance.now() - started;
   if (verbose) console.log("Response:", JSON.stringify(result, null, 2));
   const options: Option[] = candidates.map(({ name, type }) => ({
     ...(type === "file" ? { file: resolve(directory, name) } : { directory: resolve(directory, name) }),
     probability: result.answers.entry.probabilities[name],
   }));
 
-  return { options: options.sort((a, b) => b.probability - a.probability), usage: result.usage };
+  return {
+    options: options.sort((a, b) => b.probability - a.probability), usage: result.usage,
+    evaluation: { model: result.model, confidence: result.answers.entry.confidence, duration_ms },
+  };
 }

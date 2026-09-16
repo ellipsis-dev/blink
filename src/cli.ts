@@ -4,7 +4,7 @@ import { walk } from "./walkers.ts";
 import { relative } from "node:path";
 import { formatJSON, formatTable, formatSummary } from "./output.ts";
 
-export async function main(args = process.argv.slice(2)) {
+export async function main(args = process.argv.slice(2), outputDirectory?: string) {
   const started = performance.now();
   const { values, positionals } = parseArgs({
     args,
@@ -28,7 +28,7 @@ export async function main(args = process.argv.slice(2)) {
   if (!/^\d+$/.test(values.n_walkers ?? "1") || !Number.isSafeInteger(count) || count < 1) {
     throw new Error("--n_walkers must be a positive integer.");
   }
-  const result = await walk(state, count, values.verbose);
+  const result = await walk(state, count, values.verbose, outputDirectory);
   console.log(formatSummary(performance.now() - started, result.queries, result.inputTokens));
   console.log(formatTable([
     ...result.files.map(({ file, posterior }) => ({ path: file, posterior })),

@@ -106,6 +106,22 @@ The summary shows how long the search took, how many API calls completed (not co
 
 Without `-r` or `-n`, Blink ranks only immediate subdirectories.
 
+## Saved searches
+
+Recursive searches (`-r` or `-n`) save their output beside Blink:
+
+```text
+output/searches/search_abc123/
+├── metadata.json
+└── traces/
+    ├── trace_abc123.json
+    └── trace_def456.json
+```
+
+Each walker gets a unique `walker_id` such as `walker_abc123`, kept throughout its path. Its trace records every choice, probability, final destination, and status; 100 walkers produce 100 trace files.
+
+Metadata records the query, settings, timestamps, shared Jev decisions, token usage, cost, and complete results. Files are updated after every step, including when a search fails. Generated output is ignored by Git and excluded from searches of Blink itself.
+
 ## Settings
 
 Edit [settings.json](settings.json) to ignore exact file or directory names at every depth:

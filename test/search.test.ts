@@ -2,11 +2,12 @@ import { expect, spyOn, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { main } from "./blink.ts";
-import { step } from "./search.ts";
+import { main } from "../src/cli.ts";
+import { step } from "../src/search.ts";
 
 test("follows three nested directories, then stops at the most likely file", async () => {
-  const directory = join(import.meta.dir, "test", "example_codebase");
+  const searches = await mkdtemp(join(tmpdir(), "blink-searches-"));
+  const directory = join(import.meta.dir, "example_codebase");
   const query = "where is authentication handled?";
   const apiKey = process.env.TYPESAFE_API_KEY;
   const requests: { state: { query: string; directory: string } }[] = [];
@@ -42,7 +43,7 @@ test("follows three nested directories, then stops at the most likely file", asy
 
   try {
     process.env.TYPESAFE_API_KEY = "mock-key";
-    await main(["-r", "--verbose", query, directory]);
+    await main(["-r", "--verbose", query, directory], searches);
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(requests.map(({ state }) => ({ query: state.query, directory: state.directory })))
@@ -64,6 +65,7 @@ test("follows three nested directories, then stops at the most likely file", asy
     output.mockRestore();
     if (apiKey === undefined) delete process.env.TYPESAFE_API_KEY;
     else process.env.TYPESAFE_API_KEY = apiKey;
+    await rm(searches, { recursive: true, force: true });
   }
 });
 
@@ -86,13 +88,15 @@ test("ignores matching files and directories", async () => {
 
 test.each([{ flags: [] }, { flags: ["-n", "100"] }])("reports zero API queries and cost for an empty directory with %j", async ({ flags }) => {
   const directory = await mkdtemp(join(tmpdir(), "blink-empty-test-"));
+  const searches = await mkdtemp(join(tmpdir(), "blink-searches-"));
   const output = spyOn(console, "log").mockImplementation(() => {});
   try {
-    await main([...flags, "query", directory]);
+    await main([...flags, "query", directory], searches);
     expect(output.mock.calls.at(-2)![0])
       .toMatch(/^Duration: \d+\.\d{2}s\nAPI queries: 0\nEst\. cost: \$0\.00000000\n$/);
   } finally {
     output.mockRestore();
     await rm(directory, { recursive: true, force: true });
+    await rm(searches, { recursive: true, force: true });
   }
 });

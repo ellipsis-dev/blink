@@ -1,2 +1,2 @@
 #!/bin/sh
-exec bun "$(dirname "$0")/blink.ts" "$@"
+exec bun "$(dirname "$0")/src/cli.ts" "$@"

@@ -1,9 +1,11 @@
 import { isAbsolute, relative, resolve } from "node:path";
 
+export const INPUT_USD_PER_MILLION = 0.042;
+
 export function formatSummary(elapsedMs: number, queries: number, inputTokens: number): string {
   // Jev pricing, September 16, 2026: $0.042 / million input tokens; output is free.
   // https://typesafe.ai/blog/introducing-system-one-models-and-jev
-  const cost = inputTokens * 0.042 / 1_000_000;
+  const cost = inputTokens * INPUT_USD_PER_MILLION / 1_000_000;
   return `Duration: ${(elapsedMs / 1000).toFixed(2)}s\nAPI queries: ${queries}\nEst. cost: $${cost.toFixed(8)}\n`;
 }
 

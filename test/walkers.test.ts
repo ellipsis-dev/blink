@@ -2,9 +2,9 @@ import { expect, spyOn, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { main } from "./blink.ts";
-import { splitWalkers } from "./walkers.ts";
-import { formatTable } from "./output.ts";
+import { main } from "../src/cli.ts";
+import { splitWalkers } from "../src/walkers.ts";
+import { formatTable } from "../src/output.ts";
 
 test("shows the ten most common destinations and combines the rest into OTHER", () => {
   const root = import.meta.dir;
@@ -35,7 +35,8 @@ test.each([
   { flag: "--n_walkers", verbose: ["--verbose"] },
   { flag: "-n", verbose: ["-v"] },
 ])("reports a relative-path percentage table with verbosity %j", async ({ flag, verbose }) => {
-  const directory = join(import.meta.dir, "test", "example_codebase");
+  const searches = await mkdtemp(join(tmpdir(), "blink-searches-"));
+  const directory = join(import.meta.dir, "example_codebase");
   const distributions: Record<string, Record<string, number>> = {
     "": { src: 0.9, docs: 0.1 },
     src: { services: 0.85, ui: 0.15 },
@@ -64,7 +65,7 @@ test.each([
   const output = spyOn(console, "log").mockImplementation(() => {});
   try {
     process.env.TYPESAFE_API_KEY = "mock-key";
-    await main([flag, "100", ...verbose, "where is authentication handled?", directory]);
+    await main([flag, "100", ...verbose, "where is authentication handled?", directory], searches);
     expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(visited.slice().sort()).toEqual(Object.keys(distributions).sort());
     expect(output.mock.calls.at(-1)![0]).toBe([
@@ -101,11 +102,13 @@ test.each([
     output.mockRestore();
     if (apiKey === undefined) delete process.env.TYPESAFE_API_KEY;
     else process.env.TYPESAFE_API_KEY = apiKey;
+    await rm(searches, { recursive: true, force: true });
   }
 });
 
 test("reports walkers reaching empty directories without renormalizing the files", async () => {
   const directory = await mkdtemp(join(tmpdir(), "blink-walkers-"));
+  const searches = await mkdtemp(join(tmpdir(), "blink-searches-"));
   const apiKey = process.env.TYPESAFE_API_KEY;
   const fetchMock = spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({
     model: "jev-latest",
@@ -117,7 +120,7 @@ test("reports walkers reaching empty directories without renormalizing the files
     process.env.TYPESAFE_API_KEY = "mock-key";
     await mkdir(join(directory, "empty"));
     await writeFile(join(directory, "found.ts"), "");
-    await main(["-r", "-n", "10", "query", directory]);
+    await main(["-r", "-n", "10", "query", directory], searches);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(output.mock.calls.at(-1)![0])
       .toBe("┌─────────────────────┬────────┐\n│ Node                │      % │\n├─────────────────────┼────────┤\n│ found.ts            │  60.0% │\n├─────────────────────┼────────┤\n│ empty/ (unresolved) │  40.0% │\n└─────────────────────┴────────┘");
@@ -130,6 +133,7 @@ test("reports walkers reaching empty directories without renormalizing the files
     if (apiKey === undefined) delete process.env.TYPESAFE_API_KEY;
     else process.env.TYPESAFE_API_KEY = apiKey;
     await rm(directory, { recursive: true, force: true });
+    await rm(searches, { recursive: true, force: true });
   }
 });
 
