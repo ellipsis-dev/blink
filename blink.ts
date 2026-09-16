@@ -1,26 +1,37 @@
 import { step } from "./search.ts";
 import { parseArgs } from "node:util";
+import { walk } from "./walkers.ts";
+import { relative } from "node:path";
+import { formatJSON, formatTable } from "./output.ts";
 
 export async function main(args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({
     args,
-    options: { recursive: { type: "boolean", short: "r" } },
+    options: {
+      recursive: { type: "boolean", short: "r" },
+      n_walkers: { type: "string", short: "n" },
+      verbose: { type: "boolean", short: "v" },
+    },
     allowPositionals: true,
   });
-  if (positionals.length !== 2) throw new Error('Usage: ./blink [-r|--recursive] "query" "directory"');
+  if (positionals.length !== 2) throw new Error('Usage: ./blink [-r|--recursive] [-n|--n_walkers count] [-v|--verbose] "query" "directory"');
   const [query, directory] = positionals;
   const state = { query, directory };
-  while (true) {
-    const result = await step(state, values.recursive);
-    console.log(JSON.stringify(result, null, 2));
-    if (!values.recursive) break;
-    const next = result.options[0];
-    if (!next) throw new Error(`No file found: ${state.directory} has no searchable entries.`);
-    if ("file" in next) {
-      console.log(JSON.stringify({ file: next.file }, null, 2));
-      break;
-    }
-    state.directory = next.directory;
+  if (!values.recursive && values.n_walkers === undefined) {
+    console.log(formatJSON(await step(state, false, directory, values.verbose), directory));
+    return;
+  }
+  const count = Number(values.n_walkers ?? "1");
+  if (!/^\d+$/.test(values.n_walkers ?? "1") || !Number.isSafeInteger(count) || count < 1) {
+    throw new Error("--n_walkers must be a positive integer.");
+  }
+  const result = await walk(state, count, values.verbose);
+  console.log(formatTable([
+    ...result.files.map(({ file, posterior }) => ({ path: file, posterior })),
+    ...result.unresolved.map(({ directory, posterior }) => ({ path: directory, posterior, unresolved: true })),
+  ], directory));
+  if (values.n_walkers === undefined && !result.files.length) {
+    throw new Error(`No file found: ${relative(directory, result.unresolved[0].directory) || "."} has no searchable entries.`);
   }
 }
 

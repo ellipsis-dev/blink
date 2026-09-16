@@ -3,9 +3,10 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main } from "./blink.ts";
+import { step } from "./search.ts";
 
 test("follows three nested directories, then stops at the most likely file", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "blink-test-"));
+  const directory = join(import.meta.dir, "test", "example_codebase");
   const query = "where is authentication handled?";
   const apiKey = process.env.TYPESAFE_API_KEY;
   const requests: { state: { query: string; directory: string } }[] = [];
@@ -41,30 +42,19 @@ test("follows three nested directories, then stops at the most likely file", asy
 
   try {
     process.env.TYPESAFE_API_KEY = "mock-key";
-    await mkdir(join(directory, "src", "services", "auth"), { recursive: true });
-    await mkdir(join(directory, "src", "services", "billing"));
-    await mkdir(join(directory, "src", "ui"));
-    await mkdir(join(directory, "docs"));
-    await mkdir(join(directory, ".git"));
-    await writeFile(join(directory, "src", ".git"), "gitdir: ../.git");
-    await writeFile(join(directory, "src", "services", "auth", "login.ts"), "");
-    await writeFile(join(directory, "src", "services", "auth", "session.ts"), "");
-    await writeFile(join(directory, "src", "services", "billing", "invoices.ts"), "");
-    await writeFile(join(directory, "src", "ui", "button.ts"), "");
-    await writeFile(join(directory, "docs", "setup.md"), "");
-
-    await main(["-r", query, directory]);
+    await main(["-r", "--verbose", query, directory]);
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(requests.map(({ state }) => ({ query: state.query, directory: state.directory })))
       .toEqual([
-        { query, directory },
-        { query, directory: join(directory, "src") },
-        { query, directory: join(directory, "src", "services") },
-        { query, directory: join(directory, "src", "services", "auth") },
+        { query, directory: "." },
+        { query, directory: "src" },
+        { query, directory: "src/services" },
+        { query, directory: "src/services/auth" },
       ]);
-    expect(JSON.parse(output.mock.calls.at(-1)![0]))
-      .toEqual({ file: join(directory, "src", "services", "auth", "login.ts") });
+    expect(output.mock.calls.at(-1)![0])
+      .toBe("      %  Node\n100.00%  src/services/auth/login.ts");
+    expect(JSON.stringify(output.mock.calls)).not.toContain(directory);
     expect(output.mock.calls.filter(([label]) => label === "Request:")).toHaveLength(4);
     expect(output.mock.calls.filter(([label]) => label === "Response:")).toHaveLength(4);
   } finally {
@@ -72,6 +62,22 @@ test("follows three nested directories, then stops at the most likely file", asy
     output.mockRestore();
     if (apiKey === undefined) delete process.env.TYPESAFE_API_KEY;
     else process.env.TYPESAFE_API_KEY = apiKey;
+  }
+});
+
+test("ignores matching files and directories", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "blink-ignore-test-"));
+  try {
+    await mkdir(join(directory, "folder", ".git"), { recursive: true });
+    await mkdir(join(directory, "file"));
+    await writeFile(join(directory, "file", ".git"), "gitdir: ../folder/.git");
+    for (const name of ["folder", "file"]) {
+      for (const includeFiles of [false, true]) {
+        expect(await step({ query: "authentication", directory: join(directory, name) }, includeFiles))
+          .toEqual({ options: [] });
+      }
+    }
+  } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
