@@ -1,21 +1,23 @@
 # blink
 
-Search a codebase with [Jev](https://docs.typesafe.ai/concepts/system-one) through the [TypeSafe SDK](https://docs.typesafe.ai/sdk/javascript). Requires Bun 1.3.14+.
+Search a codebase with [Jev](https://docs.typesafe.ai/concepts/system-one) using an ensemble of walkers that walk the file system to find a file. 
 
+Pass a natural-language query and a directory. Use `-r` to search recursively and `-n` to explore using multiple walkers.
+
+```sh
+./blink "query" "directory" [--recursive] [--n_walkers 100]
+```
+
+###  Set up
+Requires Bun 1.3.14+.
 ```sh
 bun install
 export TYPESAFE_API_KEY="your-key"
 ```
 
-## Using
-
-Pass a natural-language query and a directory to rank where to look; add `-r` to find a file or `-n` to explore multiple paths.
-
-```sh
-./blink "query" "directory" [options]
-```
-
 ## Examples
+
+Imagine you have a file tree like this:
 
 ```text
 test/example_codebase/
@@ -32,13 +34,13 @@ test/example_codebase/
     └── setup.md
 ```
 
-These are three live results from the included [example codebase](test/example_codebase), with 100 walkers each; future results may vary. Each run prints `Duration`, `API queries`, and `Est. cost` on separate lines above the table.
-
-### Authentication
+and you want to find where the authenticate code is handled. You might do:
 
 ```sh
 ./blink "where is authentication handled?" test/example_codebase --n_walkers 100 --recursive
 ```
+
+and your results would look like
 
 ```text
 ┌──────────────────────────────┬────────┐
@@ -52,12 +54,12 @@ These are three live results from the included [example codebase](test/example_c
 └──────────────────────────────┴────────┘
 ```
 
-### Invoices
+Similarily,
 
 ```sh
 ./blink "where are invoices generated?" test/example_codebase --n_walkers 100 --recursive
 ```
-
+returns 
 ```text
 ┌──────────────────────────────────┬────────┐
 │ Node                             │      % │
@@ -70,7 +72,7 @@ These are three live results from the included [example codebase](test/example_c
 └──────────────────────────────────┴────────┘
 ```
 
-### Button component
+and it finds top level files successfully too
 
 ```sh
 ./blink "where is the reusable button component?" test/example_codebase --n_walkers 100 --recursive
@@ -86,13 +88,13 @@ These are three live results from the included [example codebase](test/example_c
 
 ## How it works
 
-Jev ranks each visited directory's immediate children using their names and types. Walkers split according to those probabilities, rounding down and assigning leftover walkers to the largest fractional remainders, then continue until they reach files. Each percentage is the number ending at that node divided by the starting count; empty directories appear as unresolved, and paths are relative to the search directory.
+Jev scores file and folder names. More likely paths get more walkers, which keep moving until they reach a file. Each result shows the percentage of starting walkers that ended there.
 
-Run `bun test` to check traversal with mocked responses and no API key.
+The table shows the top 10 results and groups the rest as `OTHER`. Empty folders are marked `unresolved`, and paths start from the folder you searched.
 
-The final table shows the 10 most common destinations, with any remaining percentage combined into `OTHER`.
+Run `bun test` to test with fake API responses; no API key is needed.
 
-The summary counts completed Jev calls (excluding SDK retries) and estimates USD cost from reported input tokens at [Jev's published rate](https://typesafe.ai/blog/introducing-system-one-models-and-jev): $0.042 per million input tokens, with free output tokens.
+The summary shows how long the search took, how many API calls completed (not counting retries), and estimated cost. [Jev charges](https://typesafe.ai/blog/introducing-system-one-models-and-jev) $0.042 per million input tokens; output tokens are free.
 
 ## Options
 
