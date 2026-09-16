@@ -53,7 +53,9 @@ test("follows three nested directories, then stops at the most likely file", asy
         { query, directory: "src/services/auth" },
       ]);
     expect(output.mock.calls.at(-1)![0])
-      .toBe("Node                             %\nsrc/services/auth/login.ts  100.0%");
+      .toBe("┌────────────────────────────┬────────┐\n│ Node                       │      % │\n├────────────────────────────┼────────┤\n│ src/services/auth/login.ts │ 100.0% │\n└────────────────────────────┴────────┘");
+    expect(output.mock.calls.at(-2)![0])
+      .toMatch(/^Duration: \d+\.\d{2}s\nAPI queries: 4\nEst\. cost: \$0\.00000000\n$/);
     expect(JSON.stringify(output.mock.calls)).not.toContain(directory);
     expect(output.mock.calls.filter(([label]) => label === "Request:")).toHaveLength(4);
     expect(output.mock.calls.filter(([label]) => label === "Response:")).toHaveLength(4);
@@ -78,6 +80,19 @@ test("ignores matching files and directories", async () => {
       }
     }
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test.each([{ flags: [] }, { flags: ["-n", "100"] }])("reports zero API queries and cost for an empty directory with %j", async ({ flags }) => {
+  const directory = await mkdtemp(join(tmpdir(), "blink-empty-test-"));
+  const output = spyOn(console, "log").mockImplementation(() => {});
+  try {
+    await main([...flags, "query", directory]);
+    expect(output.mock.calls.at(-2)![0])
+      .toMatch(/^Duration: \d+\.\d{2}s\nAPI queries: 0\nEst\. cost: \$0\.00000000\n$/);
+  } finally {
+    output.mockRestore();
     await rm(directory, { recursive: true, force: true });
   }
 });

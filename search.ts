@@ -1,12 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { relative, resolve } from "node:path";
-import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
+import { choice, TypeSafeClient, type Usage } from "@typesafe-ai/sdk";
 import settings from "./settings.json";
 
 export type State = { query: string; directory: string };
 export type Option = ({ directory: string } | { file: string }) & { probability: number };
 
-export async function step(state: State, includeFiles = false, root = state.directory, verbose = false): Promise<{ options: Option[] }> {
+export async function step(state: State, includeFiles = false, root = state.directory, verbose = false): Promise<{ options: Option[]; usage?: Usage }> {
   const directory = resolve(state.directory);
   const entries = await readdir(directory, { withFileTypes: true });
   const candidates = entries
@@ -37,5 +37,5 @@ export async function step(state: State, includeFiles = false, root = state.dire
     probability: result.answers.entry.probabilities[name],
   }));
 
-  return { options: options.sort((a, b) => b.probability - a.probability) };
+  return { options: options.sort((a, b) => b.probability - a.probability), usage: result.usage };
 }

@@ -23,10 +23,16 @@ export async function walk(state: State, nWalkers: number, verbose = false) {
   const pending = [{ ...state, directory: resolve(state.directory), walkers: nWalkers }];
   const files: { file: string; walkers: number; posterior: number }[] = [];
   const unresolved: { directory: string; walkers: number; posterior: number }[] = [];
+  let queries = 0;
+  let inputTokens = 0;
 
   for (let index = 0; index < pending.length; index++) {
     const current = pending[index];
-    const { options } = await step(current, true, state.directory, verbose);
+    const { options, usage } = await step(current, true, state.directory, verbose);
+    if (usage) {
+      queries++;
+      inputTokens += usage.input_tokens;
+    }
     if (!options.length) {
       unresolved.push({ directory: current.directory, walkers: current.walkers, posterior: current.walkers / nWalkers });
       continue;
@@ -47,6 +53,8 @@ export async function walk(state: State, nWalkers: number, verbose = false) {
 
   return {
     n_walkers: nWalkers,
+    queries,
+    inputTokens,
     files: files.sort((a, b) => b.posterior - a.posterior || a.file.localeCompare(b.file)),
     unresolved,
   };
